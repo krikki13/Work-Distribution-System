@@ -94,6 +94,7 @@ void TcpClient::initializeConnection(const std::string& raw_ip_address, unsigned
 }
 
 void TcpClient::read() {
+    cout << "Listening" << endl;
     asio::streambuf* m_response_buf = new asio::streambuf();
     asio::async_read_until(session->m_sock,
        *m_response_buf,
@@ -148,6 +149,7 @@ int main() {
 
     TcpClient client(1);
     client.initializeConnection("127.0.0.1", 13);
+    client.read();
     std::this_thread::sleep_for(std::chrono::seconds(3));
     auto s = make_shared<string>("How are ya\n");
     client.write(s);

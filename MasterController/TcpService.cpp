@@ -25,50 +25,53 @@ class TcpService {
 
 private:
     void read() {
-        asio::streambuf* m_request = new asio::streambuf();
         asio::async_read_until(*m_sock.get(),
-                *m_request,
-                '\n',
-                [this, m_request](
+            m_request,
+            '\n',
+            [this](
             const boost::system::error_code& ec, std::size_t bytes_transferred) {
                 //When the request reading completes, or an error occurs, the callback method onRequestReceived() is called.
-                onRequestReceived(m_request, ec, bytes_transferred);
+                onRequestReceived(ec, bytes_transferred);
                 read();
             });
     }
 
-    void onRequestReceived(asio::streambuf* m_request, const boost::system::error_code& ec,
+    void onRequestReceived(const boost::system::error_code& ec,
         std::size_t bytes_transferred) {
         //This method first checks whether the reading succeeded by testing the ec argument that contains the operation completion status code.
         if (ec.value() != 0) {
             std::cout << "TcpService#onRequestReceived: Error occured! Error code = "
-                << ec.value()
-                << ". Message: " << ec.message();
+                << ec.value() << ". Message: " << ec.message();
             //reading finished with an error, the corresponding message is output to the standard output stream
             //and then the onFinish() method is called.
-            //onFinish();
-            delete m_request;
+            stop();
             return;
         }
 
         // Process the request.
-        m_response = "Hello";
         string received;
-        istream is(m_request);
+        std::istream is(&m_request);
         getline(is, received);
         cout << "Received: " << received << endl;
-        delete m_request;
 
-        // When the ProcessRequest() method completes and returns the string containing the response message,
-        // the asynchronous writing operation is initiated to send this response message back to the client.
-        /*asio::async_write(*m_sock.get(),
-            asio::buffer(m_response),
-            [this](
-            const boost::system::error_code& ec,
+        auto reply = make_shared<string>("General client\n");
+        write(reply);
+    }
+
+    void write(std::shared_ptr<string> message) {
+        cout << "Sent: " << *message << endl;
+        asio::async_write(*m_sock,
+            asio::buffer(*message),
+            [this, message](const boost::system::error_code& ec, // message must be in a capture list to keep it in scope until async_write is done
             std::size_t bytes_transferred) {
-                //The onResponseSent() method is specified as a callback.
-                onResponseSent(ec, bytes_transferred);
-            });*/
+                // check the error code
+                if (ec.value() != 0) {
+                    std::cout << "TcpService#write: Error occured! Error code = "
+                    << ec.value() << ". Message: " << ec.message();
+                    //session->m_ec = ec;
+                    return;
+                }
+            });
     }
 
     void onResponseSent(const boost::system::error_code& ec,
@@ -82,15 +85,16 @@ private:
         }
 
         //method is called to perform the cleanup.
-        onFinish();
+        stop();
     }
 
     // Here we perform the cleanup.
-    void onFinish() {
+    void stop() {
         delete this;
     }
 
 	private:
 	    std::shared_ptr<asio::ip::tcp::socket> m_sock;
 	    std::string m_response;
+        asio::streambuf m_request;
 };
