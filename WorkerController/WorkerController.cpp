@@ -47,15 +47,15 @@ public:
     }
 
     void initializeConnection(const std::string& raw_ip_address, unsigned short port_num);
-    //void read();
-    void write(const string& message);
+    void read();
+    void write(std::shared_ptr<string> message);
     void stop();
 	
 private:
     asio::io_service m_ios;
     std::map<int, std::shared_ptr<Session>> m_active_sessions;
     std::mutex m_active_sessions_guard;
-    std::shared_ptr<Session> session_ptr;
+    std::shared_ptr<Session> session;
     std::unique_ptr<boost::asio::io_service::work> m_work;
     std::list<std::unique_ptr<std::thread>> m_threads;
 };
@@ -63,12 +63,11 @@ private:
 void TcpClient::initializeConnection(const std::string& raw_ip_address, unsigned short port_num) {
     cout << "InitializeConnection" << endl;
 
-	std::shared_ptr<Session> session = std::shared_ptr<Session>(
+	session = std::shared_ptr<Session>(
         new Session(m_ios,
 	        raw_ip_address,
 	        port_num));
 
-    session_ptr = session;
     session->m_sock.open(session->m_ep.protocol());
 
     //std::unique_lock<std::mutex> lock(m_active_sessions_guard);
@@ -76,7 +75,7 @@ void TcpClient::initializeConnection(const std::string& raw_ip_address, unsigned
     //lock.unlock();
 
     session->m_sock.async_connect(session->m_ep,
-        [this, session](const system::error_code& ec) {
+        [this](const system::error_code& ec) {
             //checking the error code passed to it as the ec argument
             if (ec.value() != 0) {
                 //we store the ec value in the corresponding Session object,
@@ -89,54 +88,46 @@ void TcpClient::initializeConnection(const std::string& raw_ip_address, unsigned
             }
             cout << "Async connected" << endl;
 
-            asio::async_write(session->m_sock,
-                asio::buffer("Hi there server\n"),
-                [this, session](const boost::system::error_code& ec,
-                std::size_t bytes_transferred) {
-                    // check the error code
-                    if (ec.value() != 0) {
-                        session->m_ec = ec;
-                        cout << "Async write error" << endl;
-                        return;
-                    }
-                    cout << "Async write" << endl;
-                });
+            auto s = make_shared<string>("Hi there server\n");
+            write(s);
         });
 }
 
-/*void TcpClient::read() {
-    asio::async_read_until(session_ptr->m_sock,
-       session_ptr->m_response_buf,
+void TcpClient::read() {
+    asio::streambuf* m_response_buf = new asio::streambuf();
+    asio::async_read_until(session->m_sock,
+       *m_response_buf,
        '\n',
-       [this, session_ptr](const boost::system::error_code& ec,
+       [this, m_response_buf](const boost::system::error_code& ec,
         std::size_t bytes_transferred) {
             //checks the error code
             string response;
             if (ec.value() != 0) {
-                session_ptr->m_ec = ec;
+                session->m_ec = ec;
             } else {
-                std::istream strm(&session_ptr->m_response_buf);
+                std::istream strm(m_response_buf);
                 std::getline(strm, response);
             }
 
-            cout << response << endl;
+            cout << "Response: " << response << endl;
+            delete m_response_buf;
+            read();
 		});
-}*/
+}
 
-void TcpClient::write(const string& message) {
-    std::shared_ptr<Session> session = session_ptr;
-    asio::async_write(session_ptr->m_sock,
-                    asio::buffer(message),
-                    [this, session](const boost::system::error_code& ec,
+void TcpClient::write(std::shared_ptr<string> message) {
+    asio::async_write(session->m_sock,
+	    asio::buffer(*message),
+	    [this, message](const boost::system::error_code& ec, // message must be in a capture list to keep it in scope until async_write is done
         std::size_t bytes_transferred) {
             // check the error code
             if (ec.value() != 0) {
-                session->m_ec = ec;
+                //session->m_ec = ec;
                 cout << "Async write error" << endl;
                 return;
             }
             cout << "Async write" << endl;
-                    });
+        });
 }
 
 void TcpClient::stop() {
@@ -157,8 +148,9 @@ int main() {
 
     TcpClient client(1);
     client.initializeConnection("127.0.0.1", 13);
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    client.write("How are ya\n");
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    auto s = make_shared<string>("How are ya\n");
+    client.write(s);
 
     for (;;)
         std::this_thread::sleep_for(std::chrono::seconds(60));
