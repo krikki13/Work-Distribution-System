@@ -18,3 +18,5 @@
 #include <mutex>
 #include <memory>
 #include <list>
+
+#include "../common/TcpServer/TcpClient.cpp"
