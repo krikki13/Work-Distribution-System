@@ -48,7 +48,8 @@ public:
 
     void initializeConnection(const std::string& raw_ip_address, unsigned short port_num);
     //void read();
-    //void write(string message);
+    void write(const string& message);
+    void stop();
 	
 private:
     asio::io_service m_ios;
@@ -67,6 +68,7 @@ void TcpClient::initializeConnection(const std::string& raw_ip_address, unsigned
 	        raw_ip_address,
 	        port_num));
 
+    session_ptr = session;
     session->m_sock.open(session->m_ep.protocol());
 
     //std::unique_lock<std::mutex> lock(m_active_sessions_guard);
@@ -119,11 +121,35 @@ void TcpClient::initializeConnection(const std::string& raw_ip_address, unsigned
 
             cout << response << endl;
 		});
+}*/
+
+void TcpClient::write(const string& message) {
+    std::shared_ptr<Session> session = session_ptr;
+    asio::async_write(session_ptr->m_sock,
+                    asio::buffer(message),
+                    [this, session](const boost::system::error_code& ec,
+        std::size_t bytes_transferred) {
+            // check the error code
+            if (ec.value() != 0) {
+                session->m_ec = ec;
+                cout << "Async write error" << endl;
+                return;
+            }
+            cout << "Async write" << endl;
+                    });
 }
 
-void TcpClient::write() {
-	
-}*/
+void TcpClient::stop() {
+    // Destroy work object. This allows the I/O threads to
+    // exit the event loop when there are no more pending
+    // asynchronous operations.
+    m_work.reset(NULL);
+
+    // Waiting for the I/O threads to exit.
+    for (auto& thread : m_threads) {
+        thread->join();
+    }
+}
 
 int main() {
 	cout << "Worker initializing" << endl;
@@ -131,7 +157,12 @@ int main() {
 
     TcpClient client(1);
     client.initializeConnection("127.0.0.1", 13);
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    client.write("How are ya\n");
 
+    for (;;)
+        std::this_thread::sleep_for(std::chrono::seconds(60));
+    client.stop();
 
 	return 0;
 }

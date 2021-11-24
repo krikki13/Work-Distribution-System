@@ -20,21 +20,24 @@ class TcpService {
         //This method starts handling the client by initiating the asynchronous reading operation
         //to read the request message from the client specifying the onRequestReceived() method as a callback.
         void StartHandling() {
-
-            asio::async_read_until(*m_sock.get(),
-                m_request,
-                '\n',
-                [this](
-                const boost::system::error_code& ec,
-                std::size_t bytes_transferred) {
-                    //When the request reading completes, or an error occurs, the callback method onRequestReceived() is called.
-                    onRequestReceived(ec,
-                        bytes_transferred);
-                });
+            read();
         }
 
 private:
-    void onRequestReceived(const boost::system::error_code& ec,
+    void read() {
+        asio::streambuf* m_request = new asio::streambuf();
+        asio::async_read_until(*m_sock.get(),
+                *m_request,
+                '\n',
+                [this, m_request](
+            const boost::system::error_code& ec, std::size_t bytes_transferred) {
+                //When the request reading completes, or an error occurs, the callback method onRequestReceived() is called.
+                onRequestReceived(m_request, ec, bytes_transferred);
+                read();
+            });
+    }
+
+    void onRequestReceived(asio::streambuf* m_request, const boost::system::error_code& ec,
         std::size_t bytes_transferred) {
         //This method first checks whether the reading succeeded by testing the ec argument that contains the operation completion status code.
         if (ec.value() != 0) {
@@ -44,26 +47,28 @@ private:
             //reading finished with an error, the corresponding message is output to the standard output stream
             //and then the onFinish() method is called.
             //onFinish();
+            delete m_request;
             return;
         }
 
         // Process the request.
         m_response = "Hello";
         string received;
-        istream is(&m_request);
+        istream is(m_request);
         getline(is, received);
         cout << "Received: " << received << endl;
+        delete m_request;
 
         // When the ProcessRequest() method completes and returns the string containing the response message,
         // the asynchronous writing operation is initiated to send this response message back to the client.
-        asio::async_write(*m_sock.get(),
+        /*asio::async_write(*m_sock.get(),
             asio::buffer(m_response),
             [this](
             const boost::system::error_code& ec,
             std::size_t bytes_transferred) {
                 //The onResponseSent() method is specified as a callback.
                 onResponseSent(ec, bytes_transferred);
-            });
+            });*/
     }
 
     void onResponseSent(const boost::system::error_code& ec,
@@ -88,5 +93,4 @@ private:
 	private:
 	    std::shared_ptr<asio::ip::tcp::socket> m_sock;
 	    std::string m_response;
-	    asio::streambuf m_request;
 };
