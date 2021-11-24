@@ -18,7 +18,7 @@ class MasterController {
 		void Start();
 
 	private:
-		unique_ptr<AcceptorServer> acceptorServer;
+		unique_ptr<NodeAcceptorServer> acceptorServer;
 		vector<WorkerNode> workerNodes;
 		std::unique_ptr<asio::io_service::work> m_work;
 		asio::io_service m_ios;
@@ -29,12 +29,7 @@ void MasterController::Start() {
 	cout << "Master initializing" << endl;
 
 	unsigned short port_num = 13;
-	acceptorServer.reset(new AcceptorServer(m_ios, port_num));
-	
-	acceptorServer->setOnWorkerNodeAdded([](WorkerNode* worker)
-	{
-			cout << "Added in MasterController" << endl;
-	});
+	acceptorServer.reset(new NodeAcceptorServer(m_ios, port_num));
 	acceptorServer->Start();
 	m_ios.run();
 

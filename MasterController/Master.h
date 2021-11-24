@@ -12,5 +12,5 @@
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 
-#include "AcceptorServer.cpp"
+#include "NodeAcceptorServer.cpp"
 #include "WorkerNode.cpp"

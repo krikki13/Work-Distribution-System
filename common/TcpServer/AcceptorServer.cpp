@@ -5,7 +5,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/asio.hpp>
-#include "WorkerNode.cpp"
+#include "TcpService.cpp"
 
 using namespace std;
 using namespace boost::asio::ip;
@@ -24,6 +24,9 @@ public:
         m_isStopped(false) {
     }
 
+    // Client
+    virtual TcpService* onConnectionRequest(std::shared_ptr<asio::ip::tcp::socket> socket, const string& initialMessage) = 0;
+
     //The Start() method is intended to instruct an object of the AcceptorServer class to start listening and accepting incoming connection requests.
     void Start() {
         //It puts the m_acceptor acceptor socket into listening mode
@@ -35,10 +38,6 @@ public:
     // Stop accepting incoming connection requests.
     void Stop() {
         m_isStopped.store(true);
-    }
-
-    void setOnWorkerNodeAdded(std::function<void(WorkerNode*)> callback) {
-        onWorkerNodeAdded = callback;
     }
 
 private:
@@ -57,13 +56,34 @@ private:
             });
     }
 
-    void onAccept(const boost::system::error_code& ec, std::shared_ptr<asio::ip::tcp::socket> sock) {
+    void onAccept(const boost::system::error_code& ec, std::shared_ptr<asio::ip::tcp::socket> socket) {
         cout << "onAccept" << endl;
         if (ec.value() == 0) {
-            //an instance of the Service class is created and its StartHandling() method is called
-            auto worker = new WorkerNode(sock);
-            onWorkerNodeAdded(worker);
-            worker->StartHandling();
+
+            // Client has connected. Wait for it to send identification data
+            // Then an instance of the Service class is created and its StartHandling() method is called
+            asio::streambuf* m_response_buf = new asio::streambuf();
+            asio::async_read_until(*socket,
+               *m_response_buf,
+               '\n',
+               [this, m_response_buf, socket](const boost::system::error_code& ec,
+                std::size_t bytes_transferred) {
+                    //checks the error code
+                    string response;
+                    if (ec.value() != 0) {
+                        cout << "Error";
+                    } else {
+                        std::istream strm(m_response_buf);
+                        std::getline(strm, response);
+
+                        TcpService* newClient = onConnectionRequest(socket, response);
+                        if(newClient != NULL) {
+                            newClient->StartHandling();
+                        } // else socket will be forgotten
+                    }
+
+                    delete m_response_buf;
+                });
         } else {
             //the corresponding message is output to the standard output stream.
             std::cout << "AcceptorServer#onAccept: Error occured! Error code = "

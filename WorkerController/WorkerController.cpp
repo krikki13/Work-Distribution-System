@@ -88,7 +88,7 @@ void TcpClient::initializeConnection(const std::string& raw_ip_address, unsigned
             }
             cout << "Async connected" << endl;
 
-            auto s = make_shared<string>("Hi there server\n");
+            auto s = make_shared<string>("Hello there\n");
             write(s);
         });
 }
