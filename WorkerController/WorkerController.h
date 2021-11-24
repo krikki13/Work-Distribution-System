@@ -8,6 +8,8 @@
 #include <boost/uuid/uuid_generators.hpp> // generators
 #include <boost/uuid/uuid_io.hpp> 
 #include <boost/lexical_cast.hpp>
+#include <boost/predef.h>
+#include <mutex>
 
 #include <boost/array.hpp>
 #include <boost/asio.hpp>

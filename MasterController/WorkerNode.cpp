@@ -1,9 +1,14 @@
+#pragma once
+
 #include <iostream>
+#include "TcpService.cpp"
 
 using namespace std;
 
-class WorkerNode {
-	public: 
+class WorkerNode : public TcpService {
+	public:
+		WorkerNode(std::shared_ptr<asio::ip::tcp::socket> socket) : TcpService(socket) {};
+
 		enum workerState { ready, working };
 		workerState state;
 
@@ -11,8 +16,7 @@ class WorkerNode {
 		void ping();
 
 	private:
-		chrono:time_t lastReply;
-		string hostname;
+		std::time_t lastReply;
 
 };
 

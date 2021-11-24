@@ -13,3 +13,4 @@
 #include <boost/asio.hpp>
 
 #include "AcceptorServer.cpp"
+#include "WorkerNode.cpp"

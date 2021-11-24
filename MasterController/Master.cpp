@@ -4,21 +4,39 @@
 #include "Master.h"
 
 using namespace std;
-using namespace boost::asio::ip;
+using namespace boost;
 
 
 
-int main() {
+class MasterController {
+	public:
+		void Start();
+
+	private:
+		unique_ptr<AcceptorServer> acceptorServer;
+		vector<WorkerNode> workerNodes;
+	
+};
+
+void MasterController::Start() {
 	cout << "Master initializing" << endl;
 
-    try {
-        boost::asio::io_context io_context;
-        AcceptorServer server(io_context);
+	asio::io_service io;
+	acceptorServer.reset(new AcceptorServer(io));
+	
+	acceptorServer->setOnWorkerNodeAdded([](WorkerNode* worker)
+	{
+			cout << "Added";
+	});
+	acceptorServer->Start();
 
-        io_context.run();
-    } catch (std::exception& e) {
-        std::cerr << e.what() << std::endl;
-    }
+	for(;;)
+		std::this_thread::sleep_for(std::chrono::seconds(60));
+}
+
+int main() {
+	MasterController controller;
+	controller.Start();
 
 	return 0;
 }
