@@ -7,8 +7,6 @@
 #include <boost/asio.hpp>
 #include "WorkerNode.cpp"
 
-#define PORT 13
-
 using namespace std;
 using namespace boost::asio::ip;
 
@@ -16,13 +14,13 @@ using namespace boost::asio::ip;
 // which will provide the service to connected clients.
 class AcceptorServer {
 public:
-    AcceptorServer(asio::io_service& ios) : m_ios(ios),
+    AcceptorServer(asio::io_service& ios, unsigned short port_num) : m_ios(ios),
         //The object of this class contains an instance of the asio::ip::tcp::acceptor class as its member named m_acceptor,
         //which is constructed in the AcceptorServer class's constructor.
         m_acceptor(m_ios,
         asio::ip::tcp::endpoint(
         asio::ip::address_v4::any(),
-        PORT)),
+        port_num)),
         m_isStopped(false) {
     }
 
@@ -48,9 +46,10 @@ private:
         //constructs an active socket object and initiates the asynchronous accept operation
         std::shared_ptr<asio::ip::tcp::socket> sock(new asio::ip::tcp::socket(m_ios));
 
+        cout << "InitAccept! " << endl;
         //calling the async_accept() method on the acceptor socket object
         // and passing the object representing an active socket to it as an argument.
-        m_acceptor.async_accept(*sock,
+        m_acceptor.async_accept(*sock.get(),
             [this, sock](
             const boost::system::error_code& error) {
                 //When the connection request is accepted or an error occurs, the callback method onAccept() is called.
@@ -59,7 +58,7 @@ private:
     }
 
     void onAccept(const boost::system::error_code& ec, std::shared_ptr<asio::ip::tcp::socket> sock) {
-        cout << "Something happened" << endl;
+        cout << "onAccept" << endl;
         if (ec.value() == 0) {
             //an instance of the Service class is created and its StartHandling() method is called
             auto worker = new WorkerNode(sock);
@@ -67,7 +66,7 @@ private:
             worker->StartHandling();
         } else {
             //the corresponding message is output to the standard output stream.
-            std::cout << "Error occured! Error code = "
+            std::cout << "AcceptorServer#onAccept: Error occured! Error code = "
                 << ec.value()
                 << ". Message: " << ec.message();
         }

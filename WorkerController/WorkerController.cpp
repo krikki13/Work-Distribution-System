@@ -30,6 +30,22 @@ struct Session {
 
 class TcpClient : public boost::noncopyable {
 public:
+    TcpClient(unsigned char num_of_threads) {
+
+        //instantiates an object of the asio::io_service::work class
+        // passing an instance of the asio::io_service class named m_ios to its constructor
+        m_work.reset(new boost::asio::io_service::work(m_ios));
+
+        for (unsigned char i = 1; i <= num_of_threads; i++) {
+            //spawns a thread that calls the run() method of the m_ios object.
+            std::unique_ptr<std::thread> th(
+                new std::thread([this]() { m_ios.run(); }));
+
+            m_threads.push_back(std::move(th));
+        }
+        cout << "Constructor done" << endl;
+    }
+
     void initializeConnection(const std::string& raw_ip_address, unsigned short port_num);
     //void read();
     //void write(string message);
@@ -39,16 +55,19 @@ private:
     std::map<int, std::shared_ptr<Session>> m_active_sessions;
     std::mutex m_active_sessions_guard;
     std::shared_ptr<Session> session_ptr;
+    std::unique_ptr<boost::asio::io_service::work> m_work;
+    std::list<std::unique_ptr<std::thread>> m_threads;
 };
 
 void TcpClient::initializeConnection(const std::string& raw_ip_address, unsigned short port_num) {
-    std::shared_ptr<Session> session = std::shared_ptr<Session>(
+    cout << "InitializeConnection" << endl;
+
+	std::shared_ptr<Session> session = std::shared_ptr<Session>(
         new Session(m_ios,
 	        raw_ip_address,
 	        port_num));
 
     session->m_sock.open(session->m_ep.protocol());
-    session_ptr = session;
 
     //std::unique_lock<std::mutex> lock(m_active_sessions_guard);
     //m_active_sessions[request_id] = session;
@@ -67,6 +86,19 @@ void TcpClient::initializeConnection(const std::string& raw_ip_address, unsigned
                 return;
             }
             cout << "Async connected" << endl;
+
+            asio::async_write(session->m_sock,
+                asio::buffer("Hi there server\n"),
+                [this, session](const boost::system::error_code& ec,
+                std::size_t bytes_transferred) {
+                    // check the error code
+                    if (ec.value() != 0) {
+                        session->m_ec = ec;
+                        cout << "Async write error" << endl;
+                        return;
+                    }
+                    cout << "Async write" << endl;
+                });
         });
 }
 
@@ -97,8 +129,8 @@ int main() {
 	cout << "Worker initializing" << endl;
 	cout << uid << endl;
 
-    TcpClient client;
-    client.initializeConnection("localhost", 13);
+    TcpClient client(1);
+    client.initializeConnection("127.0.0.1", 13);
 
 
 	return 0;

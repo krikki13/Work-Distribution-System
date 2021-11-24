@@ -13,3 +13,8 @@
 
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
+
+#include <thread>
+#include <mutex>
+#include <memory>
+#include <list>

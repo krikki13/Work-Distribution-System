@@ -7,6 +7,7 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/asio.hpp>
 
+using namespace std;
 using namespace boost;
 
 class TcpService {
@@ -37,17 +38,21 @@ private:
         std::size_t bytes_transferred) {
         //This method first checks whether the reading succeeded by testing the ec argument that contains the operation completion status code.
         if (ec.value() != 0) {
-            std::cout << "Error occured! Error code = "
+            std::cout << "TcpService#onRequestReceived: Error occured! Error code = "
                 << ec.value()
                 << ". Message: " << ec.message();
             //reading finished with an error, the corresponding message is output to the standard output stream
             //and then the onFinish() method is called.
-            onFinish();
+            //onFinish();
             return;
         }
 
         // Process the request.
         m_response = "Hello";
+        string received;
+        istream is(&m_request);
+        getline(is, received);
+        cout << "Received: " << received << endl;
 
         // When the ProcessRequest() method completes and returns the string containing the response message,
         // the asynchronous writing operation is initiated to send this response message back to the client.
@@ -66,7 +71,7 @@ private:
         // This method first checks whether the operation succeeded.
         if (ec.value() != 0) {
             // If the operation failed, the corresponding message is output to the standard output stream.
-            std::cout << "Error occured! Error code = "
+            std::cout << "TcpService#onResponseSent: Error occured! Error code = "
                 << ec.value()
                 << ". Message: " << ec.message();
         }
