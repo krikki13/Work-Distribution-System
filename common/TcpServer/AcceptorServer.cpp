@@ -24,9 +24,6 @@ public:
         m_isStopped(false) {
     }
 
-    // Client
-    virtual TcpService* onConnectionRequest(std::shared_ptr<asio::ip::tcp::socket> socket, const string& initialMessage) = 0;
-
     //The Start() method is intended to instruct an object of the AcceptorServer class to start listening and accepting incoming connection requests.
     void Start() {
         //It puts the m_acceptor acceptor socket into listening mode
@@ -40,6 +37,8 @@ public:
         m_isStopped.store(true);
     }
 
+    virtual void onAccept(std::shared_ptr<asio::ip::tcp::socket> socket);
+
 private:
     void InitAccept() {
         //constructs an active socket object and initiates the asynchronous accept operation
@@ -51,61 +50,35 @@ private:
         m_acceptor.async_accept(*sock.get(),
             [this, sock](
             const boost::system::error_code& error) {
-                //When the connection request is accepted or an error occurs, the callback method onAccept() is called.
-                onAccept(error, sock);
+                // When the connection request is accepted, the callback method onAccept() is called.
+                // New client can be rejected in onAccept by return nullptr
+                if (error.value() == 0) {
+                    onAccept(sock);
+                } else {
+                    //the corresponding message is output to the standard output stream.
+                    std::cout << "AcceptorServer#onAccept: Error occured! Error code = "
+                        << error.value() << ". Message: " << error.message();
+                }
+
+                // Init next async accept operation if
+                // acceptor has not been stopped yet.
+                if (!m_isStopped.load()) {
+                    InitAccept();
+                } else {
+                    // Stop accepting incoming connections
+                    // and free allocated resources.
+                    m_acceptor.close();
+                }
             });
     }
-
-    void onAccept(const boost::system::error_code& ec, std::shared_ptr<asio::ip::tcp::socket> socket) {
-        cout << "onAccept" << endl;
-        if (ec.value() == 0) {
-
-            // Client has connected. Wait for it to send identification data
-            // Then an instance of the Service class is created and its StartHandling() method is called
-            asio::streambuf* m_response_buf = new asio::streambuf();
-            asio::async_read_until(*socket,
-               *m_response_buf,
-               '\n',
-               [this, m_response_buf, socket](const boost::system::error_code& ec,
-                std::size_t bytes_transferred) {
-                    //checks the error code
-                    string response;
-                    if (ec.value() != 0) {
-                        cout << "Error";
-                    } else {
-                        std::istream strm(m_response_buf);
-                        std::getline(strm, response);
-
-                        TcpService* newClient = onConnectionRequest(socket, response);
-                        if(newClient != NULL) {
-                            newClient->StartHandling();
-                        } // else socket will be forgotten
-                    }
-
-                    delete m_response_buf;
-                });
-        } else {
-            //the corresponding message is output to the standard output stream.
-            std::cout << "AcceptorServer#onAccept: Error occured! Error code = "
-                << ec.value()
-                << ". Message: " << ec.message();
-        }
-
-        // Init next async accept operation if
-        // acceptor has not been stopped yet.
-        if (!m_isStopped.load()) {
-            InitAccept();
-        } else {
-            // Stop accepting incoming connections
-            // and free allocated resources.
-            m_acceptor.close();
-        }
-    }
-
-    std::function<void(WorkerNode*)> onWorkerNodeAdded;
 
     asio::io_service& m_ios;
     //used to asynchronously accept the incoming connection requests.
     asio::ip::tcp::acceptor m_acceptor;
     std::atomic<bool> m_isStopped;
 };
+
+void AcceptorServer::onAccept(std::shared_ptr<asio::ip::tcp::socket> socket) {
+    TcpService* service = new TcpService(socket);
+    service->StartHandling();
+}

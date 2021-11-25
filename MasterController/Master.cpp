@@ -17,9 +17,13 @@ class MasterController {
 
 		void Start();
 
+		void addWorkerNode(WorkerNode* newWorker);
+
 	private:
 		unique_ptr<NodeAcceptorServer> acceptorServer;
-		vector<WorkerNode> workerNodes;
+		std::mutex workerNodeListGuard;
+		vector<WorkerNode*> workerNodes;
+		
 		std::unique_ptr<asio::io_service::work> m_work;
 		asio::io_service m_ios;
 	
@@ -29,7 +33,12 @@ void MasterController::Start() {
 	cout << "Master initializing" << endl;
 
 	unsigned short port_num = 13;
-	acceptorServer.reset(new NodeAcceptorServer(m_ios, port_num));
+	acceptorServer.reset(new NodeAcceptorServer(m_ios, port_num, 
+		[this](WorkerNode* newWorker) {
+			std::unique_lock<std::mutex> lock(workerNodeListGuard);
+			workerNodes.push_back(newWorker);
+			lock.unlock();
+		}));
 	acceptorServer->Start();
 	m_ios.run();
 

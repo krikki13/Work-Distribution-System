@@ -10,8 +10,10 @@ class WorkerNode : public TcpService {
 		WorkerNode(std::shared_ptr<asio::ip::tcp::socket> socket) : TcpService(socket) {
 			lastReply = std::time(0);
 			state = ready;
+			uid = boost::lexical_cast<std::string>(boost::uuids::random_generator()());
 		};
 
+		string uid;
 		enum workerState { ready, working };
 		workerState state;
 

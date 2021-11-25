@@ -9,6 +9,7 @@
 #include <boost/uuid/uuid_io.hpp> 
 #include <boost/lexical_cast.hpp>
 #include <boost/predef.h>
+#include <boost/algorithm/string.hpp>
 #include <mutex>
 
 #include <boost/array.hpp>
