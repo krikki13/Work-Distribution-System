@@ -37,7 +37,7 @@ bool WorkerController::identifyWithMaster() {
         std::shared_ptr<string> reply = masterClient.readOnce();
 
         vector<string> msg;
-        boost::split(msg, reply, boost::is_any_of("\s"));
+        boost::split(msg, *reply, boost::is_any_of("\s"));
         if (msg.size() == 3 && msg[0] == "INIT" && msg[1] == "OK") {
             uid = msg[2];
             cout << "Set UID to " << uid;
