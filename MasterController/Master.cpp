@@ -14,7 +14,6 @@ class MasterController {
 			m_work.reset(new asio::io_service::work(m_ios));
 		}
 
-
 		void Start();
 
 		void addWorkerNode(WorkerNode* newWorker);
@@ -38,6 +37,7 @@ void MasterController::Start() {
 			std::unique_lock<std::mutex> lock(workerNodeListGuard);
 			workerNodes.push_back(newWorker);
 			lock.unlock();
+			return true;
 		}));
 	acceptorServer->Start();
 	m_ios.run();

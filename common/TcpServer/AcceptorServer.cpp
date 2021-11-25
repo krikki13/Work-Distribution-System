@@ -44,7 +44,7 @@ private:
         //constructs an active socket object and initiates the asynchronous accept operation
         std::shared_ptr<asio::ip::tcp::socket> sock(new asio::ip::tcp::socket(m_ios));
 
-        cout << "InitAccept! " << endl;
+        cout << "Waiting for a new client " << endl;
         //calling the async_accept() method on the acceptor socket object
         // and passing the object representing an active socket to it as an argument.
         m_acceptor.async_accept(*sock.get(),
@@ -53,6 +53,7 @@ private:
                 // When the connection request is accepted, the callback method onAccept() is called.
                 // New client can be rejected in onAccept by return nullptr
                 if (error.value() == 0) {
+                    cout << "We have got a new client" << endl;
                     onAccept(sock);
                 } else {
                     //the corresponding message is output to the standard output stream.

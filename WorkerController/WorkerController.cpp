@@ -27,7 +27,7 @@ void WorkerController::Start() {
     if(!identifyWithMaster()) {
         throw "Failed to identify";
     }
-    cout << "SUCCESS :)" << endl;
+    cout << "Ready to work :)" << endl;
 }
 
 bool WorkerController::identifyWithMaster() {
@@ -35,12 +35,13 @@ bool WorkerController::identifyWithMaster() {
         auto id = make_shared<string>("INIT WORKER");
         masterClient.write(id);
         std::shared_ptr<string> reply = masterClient.readOnce();
+        cout << "Received " << *reply << endl;
 
         vector<string> msg;
-        boost::split(msg, *reply, boost::is_any_of("\s"));
+        boost::split(msg, *reply, boost::is_any_of("\s "));
         if (msg.size() == 3 && msg[0] == "INIT" && msg[1] == "OK") {
             uid = msg[2];
-            cout << "Set UID to " << uid;
+            cout << "Set UID to " << uid << endl;
             return true;
         } else if (msg.size() != 0) {
             cout << "Failed to identify with Master: " << *reply << endl;

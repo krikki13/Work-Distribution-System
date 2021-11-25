@@ -53,7 +53,7 @@ void TcpClient::initializeConnection() {
         return;
     }
     isInitialized = true;
-    cout << "InitializeConnection" << endl;
+    cout << "Initializing connection" << endl;
 
     socket.open(ep.protocol());
     socket.connect(ep);
@@ -82,7 +82,7 @@ std::shared_ptr<string> TcpClient::readOnce() {
     boost::system::error_code error;
     asio::read_until(socket,buf, '\n', error);
 
-    std::shared_ptr<string> received;
+    auto received = make_shared<string>();
     std::istream is(&buf);
     std::getline(is, *received);
     return received;
@@ -105,17 +105,23 @@ void TcpClient::readAsyncContinuously() {
                 std::getline(strm, response);
             }
 
-            cout << "Response: " << response << endl;
+            cout << "Received (async): " << response << endl;
             delete m_response_buf;
             readAsyncContinuously();
         });
 }
 
 void TcpClient::write(std::shared_ptr<string> message) {
+    if(message->back() != '\n') {
+        message->push_back('\n');
+    }
     asio::write(socket, asio::buffer(*message));
 }
 
 void TcpClient::writeAsync(std::shared_ptr<string> message) {
+    if (message->back() != '\n') {
+        message->push_back('\n');
+    }
     asio::async_write(socket,
         asio::buffer(*message),
         [this, message](const boost::system::error_code& ec, // message must be in a capture list to keep it in scope until async_write is done
