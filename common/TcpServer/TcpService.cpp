@@ -10,7 +10,7 @@
 using namespace std;
 using namespace boost;
 
-class TcpService {
+class TcpService : public boost::noncopyable {
 	public:
         //The class's constructor accepts a shared pointer to an object representing a socket connected to a particular client as an argument
     // and caches this pointer. This socket will be used later to communicate with the client application.

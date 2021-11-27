@@ -10,31 +10,32 @@ using namespace boost;
 
 class TcpClient : public TcpService {
 public:
-    TcpClient(const string& hostName, const unsigned short port) :
-		TcpService(make_shared<asio::ip::tcp::socket>(asio::ip::tcp::socket(io_service))),
-        ep(asio::ip::address::from_string(hostName), port), isInitialized(false) {
-
-        //instantiates an object of the asio::io_service::work class
-        // passing an instance of the asio::io_service class named io_service to its constructor
-        m_work.reset(new boost::asio::io_service::work(io_service));
-
-        //spawns a thread that calls the run() method of the io_service object.
-		io_service_thread = make_unique<std::thread>([this]() { io_service.run(); });
-        cout << "Constructor done" << endl;
-    }
+    // Public constructor calling private one is a workaround, because I could not find a way to initialize io_service
+	// before initializing socket in TcpService constructor
+    TcpClient(const string& hostName, const unsigned short port) : TcpClient(hostName, port, new asio::io_service) {}
 
     ~TcpClient() {
         stop();
+        delete io_service;
     }
 
     void start();
     void stop();
 
 private:
+    TcpClient(const string& hostName, const unsigned short port, asio::io_service* io_service1) : io_service(io_service1),
+        TcpService(make_shared<asio::ip::tcp::socket>(asio::ip::tcp::socket(*io_service1))),
+        ep(asio::ip::address::from_string(hostName), port), isInitialized(false) {
+
+        m_work.reset(new boost::asio::io_service::work(*io_service));
+
+        io_service_thread = make_unique<std::thread>([this]() { io_service->run(); });
+    }
+
     std::atomic<bool> isInitialized;
     std::unique_ptr<std::thread> io_service_thread;
 
-    asio::io_service io_service;
+    asio::io_service* io_service;
     std::unique_ptr<boost::asio::io_service::work> m_work;
 
     asio::ip::tcp::endpoint ep; // Remote endpoint.

@@ -10,8 +10,6 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/predef.h>
 #include <boost/algorithm/string.hpp>
-#include <mutex>
-
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 
