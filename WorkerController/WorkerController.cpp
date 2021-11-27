@@ -27,7 +27,7 @@ private:
 void WorkerController::Start() {
 	cout << "Worker initializing" << uid << endl;
 
-    masterClient.initializeConnection();
+    masterClient.start();
     if(!identifyWithMaster()) {
         throw "Failed to identify";
     }

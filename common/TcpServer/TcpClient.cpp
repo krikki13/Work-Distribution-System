@@ -2,52 +2,46 @@
 #include <iostream>
 #include <thread>
 #include <string>
+#include "TcpService.cpp"
 
 using namespace std;
 using namespace boost;
 
 
-class TcpClient : public boost::noncopyable {
+class TcpClient : public TcpService {
 public:
-    TcpClient(const string& hostName, const unsigned short port) : socket(m_ios),
+    TcpClient(const string& hostName, const unsigned short port) :
+		TcpService(make_shared<asio::ip::tcp::socket>(asio::ip::tcp::socket(io_service))),
         ep(asio::ip::address::from_string(hostName), port), isInitialized(false) {
+
         //instantiates an object of the asio::io_service::work class
-        // passing an instance of the asio::io_service class named m_ios to its constructor
-        m_work.reset(new boost::asio::io_service::work(m_ios));
+        // passing an instance of the asio::io_service class named io_service to its constructor
+        m_work.reset(new boost::asio::io_service::work(io_service));
 
-        for (unsigned char i = 1; i <= 1; i++) {
-            //spawns a thread that calls the run() method of the m_ios object.
-            std::unique_ptr<std::thread> th(
-                new std::thread([this]() { m_ios.run(); }));
-
-            m_threads.push_back(std::move(th));
-        }
+        //spawns a thread that calls the run() method of the io_service object.
+		io_service_thread = make_unique<std::thread>(new std::thread([this]() { io_service.run(); }));
         cout << "Constructor done" << endl;
     }
 
-    void initializeConnection();
-    std::shared_ptr<string> readOnce();
-    void readAsyncContinuously(std::function<void(std::shared_ptr<string>)> callback);
-    void write(std::shared_ptr<string> message);
-    void writeAsync(std::shared_ptr<string> message);
+    ~TcpClient() {
+        stop();
+    }
+
+    void start();
     void stop();
 
 private:
     std::atomic<bool> isInitialized;
+    std::unique_ptr<std::thread> io_service_thread;
 
-    asio::io_service m_ios;
+    asio::io_service io_service;
     std::unique_ptr<boost::asio::io_service::work> m_work;
-    std::list<std::unique_ptr<std::thread>> m_threads;
 
-    asio::ip::tcp::socket socket;
     asio::ip::tcp::endpoint ep; // Remote endpoint.
 
-    // Contains the description of an error if one occurs during
-    // the request lifecycle.
-    system::error_code ec;
 };
 
-void TcpClient::initializeConnection() {
+void TcpClient::start() {
     if(isInitialized) {
         cout << "Connection is already initialized" << endl;
         return;
@@ -55,8 +49,8 @@ void TcpClient::initializeConnection() {
     isInitialized = true;
     cout << "Initializing connection" << endl;
 
-    socket.open(ep.protocol());
-    socket.connect(ep);
+    socket->open(ep.protocol());
+    socket->connect(ep);
 
     /*socket.async_connect(ep,
         [this](const system::error_code& ec) {
@@ -77,81 +71,10 @@ void TcpClient::initializeConnection() {
         });*/
 }
 
-std::shared_ptr<string> TcpClient::readOnce() {
-    asio::streambuf* buf = new asio::streambuf;
-    boost::system::error_code error;
-    asio::read_until(socket, *buf, '\n', error);
-    if (ec.value() != 0) {
-        this->ec = error;
-        cout << "Read error: " << error.message();
-        return make_shared<string>();
-    }
-
-    auto received = make_shared<string>();
-    std::istream is(buf);
-    std::getline(is, *received);
-    delete buf;
-    return received;
-}
-
-void TcpClient::readAsyncContinuously(std::function<void(std::shared_ptr<string>)> callback) {
-    cout << "Listening" << endl;
-    asio::streambuf* buf = new asio::streambuf();
-    asio::async_read_until(socket,
-       *buf,
-       '\n',
-       [this, buf, callback](const boost::system::error_code& ec,
-        std::size_t bytes_transferred) {
-            //checks the error code
-            auto response = make_shared<string>();
-            if (ec.value() != 0) {
-                this->ec = ec;
-                cout << "Async read error: " << ec.message();
-            } else {
-                std::istream is(buf);
-                std::getline(is, *response);
-            }
-            delete buf;
-            readAsyncContinuously(callback);
-            callback(response);
-        });
-}
-
-void TcpClient::write(std::shared_ptr<string> message) {
-    if(message->back() != '\n') {
-        message->push_back('\n');
-    }
-    cout << "Sending: " << *message;
-    asio::write(socket, asio::buffer(*message));
-}
-
-void TcpClient::writeAsync(std::shared_ptr<string> message) {
-    if (message->back() != '\n') {
-        message->push_back('\n');
-    }
-    cout << "Sending: " << *message;
-    asio::async_write(socket,
-        asio::buffer(*message),
-        [this, message](const boost::system::error_code& ec, // message must be in a capture list to keep it in scope until async_write is done
-        std::size_t bytes_transferred) {
-            // check the error code
-            if (ec.value() != 0) {
-                //session->m_ec = ec;
-                cout << "Async write error: " << ec.message();
-                return;
-            }
-        });
-}
 
 void TcpClient::stop() {
-    // Destroy work object. This allows the I/O threads to
-    // exit the event loop when there are no more pending
-    // asynchronous operations.
     m_work.reset(NULL);
     isInitialized = false;
 
-    // Waiting for the I/O threads to exit.
-    for (auto& thread : m_threads) {
-        thread->join();
-    }
+    io_service_thread->join();
 }

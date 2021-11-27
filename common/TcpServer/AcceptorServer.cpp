@@ -80,5 +80,8 @@ private:
 
 void AcceptorServer::onAccept(std::shared_ptr<asio::ip::tcp::socket> socket) {
     TcpService* service = new TcpService(socket);
-    service->StartHandling();
+    service->readAsyncContinuously(
+        [this](std::shared_ptr<string> message) {
+            cout << "Received: " << *message << endl;
+        });
 }

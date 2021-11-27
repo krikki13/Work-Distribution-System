@@ -35,10 +35,7 @@ public:
 					std::istream is(m_response_buf);
 					std::getline(is, response);
 
-					TcpService* newClient = identifyClient(socket, response);
-					if (newClient != NULL) {
-						newClient->StartHandling();
-					} // else socket will be forgotten
+					identifyClient(socket, response);
 				}
 
 				delete m_response_buf;
@@ -46,28 +43,28 @@ public:
 	}
 
 private:
-	TcpService* identifyClient(std::shared_ptr<asio::ip::tcp::socket> socket, const string& initialMessage);
+	void identifyClient(std::shared_ptr<asio::ip::tcp::socket> socket, const string& initialMessage);
 	std::function<bool(WorkerNode*)> onWorkerNodeAdded;
 };
 
-TcpService* NodeAcceptorServer::identifyClient(std::shared_ptr<asio::ip::tcp::socket> socket, const string& initialMessage) {
+void NodeAcceptorServer::identifyClient(std::shared_ptr<asio::ip::tcp::socket> socket, const string& initialMessage) {
 	cout << "Received identification details: " << initialMessage << endl;
 
 	vector<string> msg;
 	boost::split(msg, initialMessage, boost::is_any_of("\s "));
 	if (msg.size() < 2) {
-		return nullptr;
+		return;
 	}
 	if (msg.size() == 2 && msg[0] == "INIT" && msg[1] == "WORKER") {
 		auto* client = new WorkerNode(socket);
 		if(onWorkerNodeAdded(client)) {
 			client->writeAsync(make_shared<string>("INIT OK " + client->uid));
-			return client;
+			client->start();
 		}
 	} else {
 		cout << "else";
-		return nullptr;
+		return;
 	}
-	return nullptr;
+	return;
 }
 
