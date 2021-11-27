@@ -19,7 +19,7 @@ public:
         m_work.reset(new boost::asio::io_service::work(io_service));
 
         //spawns a thread that calls the run() method of the io_service object.
-		io_service_thread = make_unique<std::thread>(new std::thread([this]() { io_service.run(); }));
+		io_service_thread = make_unique<std::thread>([this]() { io_service.run(); });
         cout << "Constructor done" << endl;
     }
 

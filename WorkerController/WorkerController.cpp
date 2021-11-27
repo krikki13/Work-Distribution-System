@@ -47,7 +47,7 @@ bool WorkerController::identifyWithMaster() {
         cout << "Received " << *reply << endl;
 
         vector<string> msg;
-        boost::split(msg, *reply, boost::is_any_of("\s "));
+        boost::split(msg, *reply, boost::is_any_of("\\s "));
         if (msg.size() == 3 && msg[0] == "INIT" && msg[1] == "OK") {
             uid = msg[2];
             cout << "Set UID to " << uid << endl;
@@ -65,7 +65,7 @@ void WorkerController::listenForCommands() {
 	while(true) {
         auto message = masterClient.readOnce();
         vector<string> msg;
-        boost::split(msg, *message, boost::is_any_of("\s "));
+        boost::split(msg, *message, boost::is_any_of("\\s "));
         if(msg.size() == 0) {
             cout << "Received message with no content";
             continue;
@@ -87,6 +87,7 @@ string WorkerController::toString(State state) {
     } else if (state == working) {
         return "Working";
 	}
+    return "";
 }
 
 int main() {

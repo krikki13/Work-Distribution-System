@@ -51,7 +51,7 @@ void NodeAcceptorServer::identifyClient(std::shared_ptr<asio::ip::tcp::socket> s
 	cout << "Received identification details: " << initialMessage << endl;
 
 	vector<string> msg;
-	boost::split(msg, initialMessage, boost::is_any_of("\s "));
+	boost::split(msg, initialMessage, boost::is_any_of("\\s "));
 	if (msg.size() < 2) {
 		return;
 	}
