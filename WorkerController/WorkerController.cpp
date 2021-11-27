@@ -19,7 +19,7 @@ public:
 
 private:
     State currentState;
-    void listenForCommands();
+    void listenForCommands(std::shared_ptr<string> message);
     bool identifyWithMaster();
     string toString(State state);
 };
@@ -32,8 +32,8 @@ void WorkerController::Start() {
         throw "Failed to identify";
     }
 
-    std::unique_ptr<std::thread> th(
-                new std::thread([this]() { listenForCommands(); }));
+    // How do you pass function by reference
+    masterClient.readAsyncContinuously([this](std::shared_ptr<string> message) { listenForCommands(message); });
 
     currentState = ready;
     cout << "Ready to work :)" << endl;
@@ -61,21 +61,17 @@ bool WorkerController::identifyWithMaster() {
     return false;
 }
 
-void WorkerController::listenForCommands() {
-	while(true) {
-        auto message = masterClient.readOnce();
-        vector<string> msg;
-        boost::split(msg, *message, boost::is_any_of("\\s "));
-        if(msg.size() == 0) {
-            cout << "Received message with no content";
-            continue;
-        }
-		if(msg[0] == "PING") {
-            auto reply = make_shared<string>("PONG " + toString(currentState));
-            masterClient.writeAsync(reply);
-		} else {
-            cout << "Unknown command: " << *message << endl;
-		}
+void WorkerController::listenForCommands(std::shared_ptr<string> message) {
+    vector<string> msg;
+    boost::split(msg, *message, boost::is_any_of("\\s "));
+    if(msg.size() == 0) {
+        cout << "Received message with no content" << endl;
+    }
+	if(msg[0] == "PING") {
+        auto reply = make_shared<string>("PONG " + toString(currentState));
+        masterClient.writeAsync(reply);
+	} else {
+        cout << "Unknown command: " << *message << endl;
 	}
 }
 
