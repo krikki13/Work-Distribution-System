@@ -27,7 +27,7 @@ public:
 
     void initializeConnection();
     std::shared_ptr<string> readOnce();
-    void readAsyncContinuously(std::function<void(const boost::system::error_code&, std::shared_ptr<string>)> callback);
+    void readAsyncContinuously(std::function<void(std::shared_ptr<string>)> callback);
     void write(std::shared_ptr<string> message);
     void writeAsync(std::shared_ptr<string> message);
     void stop();
@@ -81,6 +81,11 @@ std::shared_ptr<string> TcpClient::readOnce() {
     asio::streambuf* buf = new asio::streambuf;
     boost::system::error_code error;
     asio::read_until(socket, *buf, '\n', error);
+    if (ec.value() != 0) {
+        this->ec = error;
+        cout << "Read error: " << error.message();
+        return make_shared<string>();
+    }
 
     auto received = make_shared<string>();
     std::istream is(buf);
@@ -89,26 +94,26 @@ std::shared_ptr<string> TcpClient::readOnce() {
     return received;
 }
 
-void TcpClient::readAsyncContinuously(std::function<void(const boost::system::error_code&, std::shared_ptr<string>)> callback) {
+void TcpClient::readAsyncContinuously(std::function<void(std::shared_ptr<string>)> callback) {
     cout << "Listening" << endl;
-    asio::streambuf* m_response_buf = new asio::streambuf();
+    asio::streambuf* buf = new asio::streambuf();
     asio::async_read_until(socket,
-       *m_response_buf,
+       *buf,
        '\n',
-       [this, m_response_buf, callback](const boost::system::error_code& ec,
+       [this, buf, callback](const boost::system::error_code& ec,
         std::size_t bytes_transferred) {
             //checks the error code
-            string response;
+            auto response = make_shared<string>();
             if (ec.value() != 0) {
                 this->ec = ec;
+                cout << "Async read error: " << ec.message();
             } else {
-                std::istream strm(m_response_buf);
-                std::getline(strm, response);
+                std::istream is(buf);
+                std::getline(is, *response);
             }
-
-            cout << "Received (async): " << response << endl;
-            delete m_response_buf;
+            delete buf;
             readAsyncContinuously(callback);
+            callback(response);
         });
 }
 
@@ -116,6 +121,7 @@ void TcpClient::write(std::shared_ptr<string> message) {
     if(message->back() != '\n') {
         message->push_back('\n');
     }
+    cout << "Sending: " << *message;
     asio::write(socket, asio::buffer(*message));
 }
 
@@ -131,7 +137,7 @@ void TcpClient::writeAsync(std::shared_ptr<string> message) {
             // check the error code
             if (ec.value() != 0) {
                 //session->m_ec = ec;
-                cout << "Async write error" << endl;
+                cout << "Async write error: " << ec.message();
                 return;
             }
         });
@@ -142,6 +148,7 @@ void TcpClient::stop() {
     // exit the event loop when there are no more pending
     // asynchronous operations.
     m_work.reset(NULL);
+    isInitialized = false;
 
     // Waiting for the I/O threads to exit.
     for (auto& thread : m_threads) {
