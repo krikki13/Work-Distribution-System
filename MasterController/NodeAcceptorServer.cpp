@@ -12,13 +12,14 @@
 using namespace std;
 using namespace boost::asio::ip;
 
-//responsible for accepting the connection requests arriving from clients and instantiating the objects of the Service class,
+//responsible for accepting or rejecting the connection requests arriving from clients and instantiating the objects of the Service class,
 // which will provide the service to connected clients.
 class NodeAcceptorServer : public AcceptorServer {
 public:
 	NodeAcceptorServer(asio::io_service& ios, unsigned short port_num, std::function<bool(WorkerNode*)> onWorkerNodeAdded) :
 		AcceptorServer(ios, port_num), onWorkerNodeAdded(onWorkerNodeAdded) {};
 
+	// Gets called when new connection is established. 
 	void onAccept(std::shared_ptr<asio::ip::tcp::socket> socket) override {
 		cout << "Waiting for client's identification details" << endl;
 		auto m_response_buf = new asio::streambuf();
@@ -60,7 +61,7 @@ TcpService* NodeAcceptorServer::identifyClient(std::shared_ptr<asio::ip::tcp::so
 	if (msg.size() == 2 && msg[0] == "INIT" && msg[1] == "WORKER") {
 		auto* client = new WorkerNode(socket);
 		if(onWorkerNodeAdded(client)) {
-			client->write(make_shared<string>("INIT OK " + client->uid));
+			client->writeAsync(make_shared<string>("INIT OK " + client->uid));
 			return client;
 		}
 	} else {

@@ -25,3 +25,7 @@ class WorkerNode : public TcpService {
 
 };
 
+void WorkerNode::ping() {
+	writeAsync(make_shared<string>("PING"));
+}
+

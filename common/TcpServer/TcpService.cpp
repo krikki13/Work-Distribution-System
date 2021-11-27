@@ -52,12 +52,9 @@ class TcpService {
             std::istream is(&m_request);
             getline(is, received);
             cout << "Received: " << received << endl;
-
-            auto reply = make_shared<string>("General client\n");
-            write(reply);
         }
 
-        void write(std::shared_ptr<string> message) {
+        void writeAsync(std::shared_ptr<string> message) {
             if (message->back() != '\n') {
                 message->push_back('\n');
             }

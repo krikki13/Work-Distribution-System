@@ -27,7 +27,7 @@ public:
 
     void initializeConnection();
     std::shared_ptr<string> readOnce();
-    void readAsyncContinuously();
+    void readAsyncContinuously(std::function<void(const boost::system::error_code&, std::shared_ptr<string>)> callback);
     void write(std::shared_ptr<string> message);
     void writeAsync(std::shared_ptr<string> message);
     void stop();
@@ -78,23 +78,24 @@ void TcpClient::initializeConnection() {
 }
 
 std::shared_ptr<string> TcpClient::readOnce() {
-    asio::streambuf buf;
+    asio::streambuf* buf = new asio::streambuf;
     boost::system::error_code error;
-    asio::read_until(socket,buf, '\n', error);
+    asio::read_until(socket, *buf, '\n', error);
 
     auto received = make_shared<string>();
-    std::istream is(&buf);
+    std::istream is(buf);
     std::getline(is, *received);
+    delete buf;
     return received;
 }
 
-void TcpClient::readAsyncContinuously() {
+void TcpClient::readAsyncContinuously(std::function<void(const boost::system::error_code&, std::shared_ptr<string>)> callback) {
     cout << "Listening" << endl;
     asio::streambuf* m_response_buf = new asio::streambuf();
     asio::async_read_until(socket,
        *m_response_buf,
        '\n',
-       [this, m_response_buf](const boost::system::error_code& ec,
+       [this, m_response_buf, callback](const boost::system::error_code& ec,
         std::size_t bytes_transferred) {
             //checks the error code
             string response;
@@ -107,7 +108,7 @@ void TcpClient::readAsyncContinuously() {
 
             cout << "Received (async): " << response << endl;
             delete m_response_buf;
-            readAsyncContinuously();
+            readAsyncContinuously(callback);
         });
 }
 
@@ -122,6 +123,7 @@ void TcpClient::writeAsync(std::shared_ptr<string> message) {
     if (message->back() != '\n') {
         message->push_back('\n');
     }
+    cout << "Sending: " << *message;
     asio::async_write(socket,
         asio::buffer(*message),
         [this, message](const boost::system::error_code& ec, // message must be in a capture list to keep it in scope until async_write is done
@@ -132,7 +134,6 @@ void TcpClient::writeAsync(std::shared_ptr<string> message) {
                 cout << "Async write error" << endl;
                 return;
             }
-            cout << "Async write" << endl;
         });
 }
 

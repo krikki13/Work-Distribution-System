@@ -6,10 +6,11 @@
 #define MASTER_HOSTNAME "127.0.0.1"
 #define MASTER_PORT 13
 
+enum State { initializing, ready, working };
 
 class WorkerController {
 public:
-    WorkerController() : masterClient(MASTER_HOSTNAME, MASTER_PORT) {};
+    WorkerController() : masterClient(MASTER_HOSTNAME, MASTER_PORT), currentState(initializing) {};
 
     string uid;
     TcpClient masterClient;
@@ -17,7 +18,10 @@ public:
     void Start();
 
 private:
+    State currentState;
+    void listenForCommands();
     bool identifyWithMaster();
+    string toString(State state);
 };
 
 void WorkerController::Start() {
@@ -27,6 +31,11 @@ void WorkerController::Start() {
     if(!identifyWithMaster()) {
         throw "Failed to identify";
     }
+
+    std::unique_ptr<std::thread> th(
+                new std::thread([this]() { listenForCommands(); }));
+
+    currentState = ready;
     cout << "Ready to work :)" << endl;
 }
 
@@ -43,7 +52,7 @@ bool WorkerController::identifyWithMaster() {
             uid = msg[2];
             cout << "Set UID to " << uid << endl;
             return true;
-        } else if (msg.size() != 0) {
+        } else if (!msg.empty()) {
             cout << "Failed to identify with Master: " << *reply << endl;
             return false;
         }
@@ -52,6 +61,33 @@ bool WorkerController::identifyWithMaster() {
     return false;
 }
 
+void WorkerController::listenForCommands() {
+	while(true) {
+        auto message = masterClient.readOnce();
+        vector<string> msg;
+        boost::split(msg, *message, boost::is_any_of("\s "));
+        if(msg.size() == 0) {
+            cout << "Received message with no content";
+            continue;
+        }
+		if(msg[0] == "PING") {
+            auto reply = make_shared<string>("PONG " + toString(currentState));
+            masterClient.writeAsync(reply);
+		} else {
+            cout << "Unknown command: " << *message << endl;
+		}
+	}
+}
+
+string WorkerController::toString(State state) {
+    if (state == initializing) {
+        return "Initializing";
+    } else if(state == ready) {
+        return "Ready";
+    } else if (state == working) {
+        return "Working";
+	}
+}
 
 int main() {
 

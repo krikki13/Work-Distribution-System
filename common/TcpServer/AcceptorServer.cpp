@@ -51,7 +51,6 @@ private:
             [this, sock](
             const boost::system::error_code& error) {
                 // When the connection request is accepted, the callback method onAccept() is called.
-                // New client can be rejected in onAccept by return nullptr
                 if (error.value() == 0) {
                     cout << "We have got a new client" << endl;
                     onAccept(sock);

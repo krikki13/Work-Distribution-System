@@ -16,8 +16,6 @@ class MasterController {
 
 		void Start();
 
-		void addWorkerNode(WorkerNode* newWorker);
-
 	private:
 		unique_ptr<NodeAcceptorServer> acceptorServer;
 		std::mutex workerNodeListGuard;
@@ -32,7 +30,7 @@ void MasterController::Start() {
 	cout << "Master initializing" << endl;
 
 	unsigned short port_num = 13;
-	acceptorServer.reset(new NodeAcceptorServer(m_ios, port_num, 
+	acceptorServer.reset(new NodeAcceptorServer(m_ios, port_num,
 		[this](WorkerNode* newWorker) {
 			std::unique_lock<std::mutex> lock(workerNodeListGuard);
 			workerNodes.push_back(newWorker);
@@ -40,11 +38,22 @@ void MasterController::Start() {
 			return true;
 		}));
 	acceptorServer->Start();
-	m_ios.run();
+	std::unique_ptr<std::thread> acceptorServerThread(
+				new std::thread([this]() { m_ios.run(); }));
 
-	cout << "m_ios.run(); blocks thread" << endl;
-	for(;;)
-		std::this_thread::sleep_for(std::chrono::seconds(60));
+	while(true) {
+		std::this_thread::sleep_for(std::chrono::seconds(5));
+
+		if (!workerNodes.empty()) {
+			cout << "Pinging" << endl;
+			std::unique_lock<std::mutex> lock(workerNodeListGuard);
+			for (auto worker : workerNodes) {
+				worker->ping();
+			}
+			lock.unlock();
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(500));
+	}
 }
 
 int main() {
