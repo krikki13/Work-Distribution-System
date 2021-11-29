@@ -9,5 +9,3 @@ Components will eventually be running in docker containers.
 
 ## Current state
 Master pings workers and workers ping back.
-
-If a single worker is turned off, the whole system is "turned off". It's a feature.
