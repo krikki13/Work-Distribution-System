@@ -19,14 +19,22 @@ class WorkerNode : public TcpService {
 		};
 
 		string uid;
-		WorkerState state;
+		
 
 		void start();
 		void update();
 
+		void sendTask(const string& taskId);
+		bool isReady() {
+			return state == ready;
+		}
+
 	private:
 		void parseReceivedMessage(std::shared_ptr<string> message);
 		void ping();
+
+		WorkerState state;
+		string latestTaskId;
 
 		bool pingSent;
 		std::chrono::steady_clock::time_point pingSentAt;
@@ -54,10 +62,6 @@ void WorkerNode::update() {
 				ping();
 			}
 		}
-
-		if(state == ready) {
-			writeAsync(make_shared<string>("TASK 1"));
-		}
 	}catch(ServerException e) {
 		cout << "Exception in worker update (" << uid << "): " << e.what() << endl;
 	}
@@ -69,16 +73,29 @@ void WorkerNode::ping() {
 	pingSentAt = std::chrono::high_resolution_clock::now();
 }
 
+void WorkerNode::sendTask(const string& taskId) {
+	writeAsync(make_shared<string>("TASK " + taskId));
+}
+
 void WorkerNode::parseReceivedMessage(std::shared_ptr<string> message) {
 	cout << "Received from worker " << uid << ": " << *message << endl;
 	vector<string> msg;
 	boost::split(msg, *message, boost::is_any_of("\\s "));
-	if(msg[0] == "PONG") {
+	if (msg[0] == "PONG") {
 		pingSent = false;
 		state = workerStateFromString(msg[1]);
-	} else {
-		cout << "Unknown command: " << *message << endl;
+		return;
+	} else if (msg[0] == "TASK") {
+		if(msg.size() == 3 && msg[2] == "ACCEPTED") {
+			latestTaskId = string(msg[1]);
+			state = working;
+			return;
+		} else if(msg.size() == 4 && msg[2] == "REJECTED") {
+			cout << "Worker rejected task " + msg[1] << " because " << msg[3] << endl;  // TODO handle this
+			return;
+		}
 	}
-
+	cout << "Unknown command: " << *message << endl;
+	
 	lastReply = std::chrono::high_resolution_clock::now();
 }

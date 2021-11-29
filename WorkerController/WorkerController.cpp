@@ -109,6 +109,7 @@ void WorkerController::listenForCommands(std::shared_ptr<string> message) {
 }
 
 void WorkerController::startWorking(string& taskId) {
+    masterClient.writeAsync(make_shared<string>("TASK " + taskId + " ACCEPTED"));
     currentState = working;
 
     latestTask.reset(new Task(taskId, std::chrono::high_resolution_clock::now()));

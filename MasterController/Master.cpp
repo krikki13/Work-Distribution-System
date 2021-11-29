@@ -56,6 +56,7 @@ void MasterController::Start() {
 }
 
 void MasterController::loop() {
+	int taskCounter = 0; // temporary, just for testing
 	while (true) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(LOOP_INTERVAL));
 
@@ -69,6 +70,9 @@ void MasterController::loop() {
 					//workerNodes.erase(worker);
 					toErase.push_back(worker->second->uid);
 				} else {
+					if(worker->second->isReady()) {
+						worker->second->sendTask(std::to_string(++taskCounter));
+					}
 					worker->second->update();
 				}
 			}
