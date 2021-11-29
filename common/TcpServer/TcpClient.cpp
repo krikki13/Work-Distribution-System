@@ -12,14 +12,16 @@ class TcpClient : public TcpService {
 public:
     // Public constructor calling private one is a workaround, because I could not find a way to initialize io_service
 	// before initializing socket in TcpService constructor
-    TcpClient(const string& hostName, const unsigned short port) : TcpClient(hostName, port, new asio::io_service) {}
+    TcpClient(const string& hostName, const unsigned short port) : TcpClient(hostName, port, new asio::io_service) {
+        persistent = true;
+
+        start();
+    }
 
     ~TcpClient() {
         stop();
-        delete io_service;
     }
 
-    void start();
     void stop();
 
 private:
@@ -31,6 +33,7 @@ private:
 
         io_service_thread = make_unique<std::thread>([this]() { io_service->run(); });
     }
+    void start();
 
     std::atomic<bool> isInitialized;
     std::unique_ptr<std::thread> io_service_thread;
@@ -52,30 +55,15 @@ void TcpClient::start() {
 
     socket->open(ep.protocol());
     socket->connect(ep);
-
-    /*socket.async_connect(ep,
-        [this](const system::error_code& ec) {
-            //checking the error code passed to it as the ec argument
-            if (ec.value() != 0) {
-                //we store the ec value in the corresponding Session object,
-                session->m_ec = ec;
-                //call the class's onRequestComplete() private method passing the Session object to it as an argument
-
-                cout << "Async connection error" << endl;
-                //then return.
-                return;
-            }
-            cout << "Async connected" << endl;
-
-            auto s = make_shared<string>("Hello there\n");
-            write(s);
-        });*/
 }
 
 
 void TcpClient::stop() {
+    if (stopped) return;
+
+    stopped = true;
     m_work.reset(NULL);
-    isInitialized = false;
 
     io_service_thread->join();
+    delete io_service;
 }

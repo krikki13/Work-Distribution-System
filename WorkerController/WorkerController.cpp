@@ -23,18 +23,28 @@ private:
 };
 
 void WorkerController::Start() {
-	cout << "Worker initializing" << uid << endl;
+    cout << "Worker initializing" << uid << endl;
+    try {
 
-    masterClient.start();
-    if(!identifyWithMaster()) {
-        throw "Failed to identify";
+        if (!identifyWithMaster()) {
+            throw "Failed to identify";
+        }
+
+        masterClient.readAsyncContinuously([this](std::shared_ptr<string> message) { listenForCommands(message); });
+        currentState = ready;
+        cout << "Ready to work :)" << endl;
+
+        while (true) {
+            if (masterClient.isStopped()) {
+                cout << "TcpClient stopped. Exiting" << endl;
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+        }
+    } catch (ServerException e) {
+        cout << e.what() << endl;
+        cout << "TcpClient stopped. Exiting" << endl;
     }
-
-    // How do you pass function by reference
-    masterClient.readAsyncContinuously([this](std::shared_ptr<string> message) { listenForCommands(message); });
-
-    currentState = ready;
-    cout << "Ready to work :)" << endl;
 }
 
 bool WorkerController::identifyWithMaster() {
@@ -74,17 +84,8 @@ void WorkerController::listenForCommands(std::shared_ptr<string> message) {
 }
 
 int main() {
-
     WorkerController controller;
     controller.Start();
-    
-    /*std::this_thread::sleep_for(std::chrono::seconds(3));
-    auto s = make_shared<string>("How are ya\n");
-    client.write(s);*/
-
-    for (;;)
-        std::this_thread::sleep_for(std::chrono::seconds(60));
-    //client.stop();
 
 	return 0;
 }

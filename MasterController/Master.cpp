@@ -11,10 +11,6 @@ using namespace boost;
 
 class MasterController {
 	public:
-		MasterController() {
-			m_work.reset(new asio::io_service::work(m_ios));
-		}
-
 		void Start();
 
 	private:
@@ -23,32 +19,40 @@ class MasterController {
 		unordered_map<string, WorkerNode*> workerNodes;
 
 		void loop();
+		void stop();
 		std::unique_ptr<asio::io_service::work> m_work;
 		asio::io_service m_ios;
-	
+		std::unique_ptr<std::thread> acceptorServerThread;
 };
 
 void MasterController::Start() {
 	cout << "Master initializing" << endl;
 
-	unsigned short port_num = 13;
-	acceptorServer.reset(new NodeAcceptorServer(m_ios, port_num,
-		[this](WorkerNode* newWorker) {
-			std::unique_lock<std::mutex> lock(workerNodeListGuard);
-			if(workerNodes.find(newWorker->uid) != workerNodes.end()) {
-				cout << "Worker node with UID " << newWorker->uid << " already exists in the worker list" << endl;
-				lock.unlock();
-				return false;
-			}
-			workerNodes[newWorker->uid] = newWorker;
-			lock.unlock();
-			return true;
-		}));
-	acceptorServer->Start();
-	std::unique_ptr<std::thread> acceptorServerThread(
-				new std::thread([this]() { m_ios.run(); }));
+	try {
+		m_work.reset(new asio::io_service::work(m_ios));
 
-	loop();
+		unsigned short port_num = 13;
+		acceptorServer.reset(new NodeAcceptorServer(m_ios, port_num,
+			[this](WorkerNode* newWorker) {
+				std::unique_lock<std::mutex> lock(workerNodeListGuard);
+				if (workerNodes.find(newWorker->uid) != workerNodes.end()) {
+					cout << "Worker node with UID " << newWorker->uid << " already exists in the worker list" << endl;
+					lock.unlock();
+					return false;
+				}
+				workerNodes[newWorker->uid] = newWorker;
+				lock.unlock();
+				return true;
+			}));
+		acceptorServer->Start();
+		acceptorServerThread = make_unique<std::thread>([this]() { m_ios.run(); });
+
+		loop();
+	} catch(ServerException e) {
+		stop();
+		cout << e.what() << endl;
+		cout << "TcpServer stopped. Exiting" << endl;
+	}
 }
 
 void MasterController::loop() {
@@ -57,13 +61,30 @@ void MasterController::loop() {
 
 		if (!workerNodes.empty()) {
 			cout << "Update " << endl;
+			vector<string> toErase;
 			std::unique_lock<std::mutex> lock(workerNodeListGuard);
-			for (auto& worker : workerNodes) {
-				worker.second->update();
+			for (auto worker = workerNodes.begin(); worker != workerNodes.end(); ++worker) {
+				if(worker->second->isStopped()) {
+					cout << "Removing worker node " << worker->second->uid << " because it has stopped" << endl;
+					//workerNodes.erase(worker);
+					toErase.push_back(worker->second->uid);
+				} else {
+					worker->second->update();
+				}
+			}
+			for(string& uid : toErase) {
+				workerNodes.erase(uid);
 			}
 			lock.unlock();
 		}
 	}
+}
+
+void MasterController::stop() {
+	acceptorServer->Stop();
+	m_ios.stop();
+
+	acceptorServerThread->join();
 }
 
 int main() {

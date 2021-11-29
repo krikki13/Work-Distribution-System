@@ -39,18 +39,23 @@ void WorkerNode::start() {
 }
 
 void WorkerNode::update() {
-	auto timeNow = std::chrono::high_resolution_clock::now();
+	if (stopped) return;
+	try {
+		auto timeNow = std::chrono::high_resolution_clock::now();
 
-	if(pingSent) {
-		double timeSincePing = std::chrono::duration<double, std::milli>(timeNow - lastReply).count();
-		if (timeSincePing > PING_INTERVAL) {
-			cout << "No reply for too long"; // TODO panic
+		if (pingSent) {
+			double timeSincePing = std::chrono::duration<double, std::milli>(timeNow - lastReply).count();
+			if (timeSincePing > PING_INTERVAL) {
+				cout << "No reply for too long"; // TODO panic
+			}
+		} else {
+			double timeSinceLastReply = std::chrono::duration<double, std::milli>(timeNow - lastReply).count();
+			if (timeSinceLastReply > PING_INTERVAL) {
+				ping();
+			}
 		}
-	} else {
-		double timeSinceLastReply = std::chrono::duration<double, std::milli>(timeNow - lastReply).count();
-		if (timeSinceLastReply > PING_INTERVAL) {
-			ping();
-		}
+	}catch(ServerException e) {
+		cout << "Exception in worker update (" << uid << "): " << e.what() << endl;
 	}
 }
 

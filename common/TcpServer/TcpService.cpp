@@ -7,6 +7,8 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/asio.hpp>
 
+#include "ServerException.cpp"
+
 using namespace std;
 using namespace boost;
 
@@ -15,6 +17,8 @@ class TcpService : public boost::noncopyable {
         //The class's constructor accepts a shared pointer to an object representing a socket connected to a particular client as an argument
     // and caches this pointer. This socket will be used later to communicate with the client application.
         TcpService(std::shared_ptr<asio::ip::tcp::socket> socket) : socket(socket) {
+            persistent = false;
+            stopped = false;
         }
 
         std::shared_ptr<string> readOnce();
@@ -22,18 +26,41 @@ class TcpService : public boost::noncopyable {
         void write(std::shared_ptr<string> message);
         void writeAsync(std::shared_ptr<string> message);
 
+        void setPersistent(bool value) {
+            persistent = value;
+        }
+
         void stop() {
 			// What is the proper way to stop
-            delete this;
+            stopped = true;
+
+            socket->close();
+            if(!persistent) {
+				delete this;
+            }
+        }
+
+		bool isStopped() {
+            return stopped;
+        }
+
+        system::error_code& getErrorCode() {
+	        return ec;
         }
 
 protected:
     std::shared_ptr<asio::ip::tcp::socket> socket;
-
     system::error_code ec;
+
+    // if false the instance will destroy itself when fatal error is encountered
+    // if true the instance will stop managing network request when fatal error is encountered, but it will not destroy itself 
+    bool persistent;
+    bool stopped;
 };
 
 std::shared_ptr<string> TcpService::readOnce() {
+    if (stopped) throw ServerException("TCP Service has already stopped. Cannot execute readOnce()");
+
     asio::streambuf* buf = new asio::streambuf;
     boost::system::error_code error;
     asio::read_until(*socket, *buf, '\n', error);
@@ -54,6 +81,8 @@ std::shared_ptr<string> TcpService::readOnce() {
 }
 
 void TcpService::readAsyncContinuously(std::function<void(std::shared_ptr<string>)> callback) {
+    if (stopped) throw ServerException("TCP Service has already stopped. Cannot execute readAsyncContinuously()");
+
     cout << "Listening" << endl;
     asio::streambuf* buf = new asio::streambuf();
     asio::async_read_until(*socket,
@@ -80,6 +109,8 @@ void TcpService::readAsyncContinuously(std::function<void(std::shared_ptr<string
 }
 
 void TcpService::write(std::shared_ptr<string> message) {
+    if (stopped) throw ServerException("TCP Service has stopped. Cannot execute write()");
+
     if (message->back() != '\n') {
         message->push_back('\n');
     }
@@ -96,6 +127,8 @@ void TcpService::write(std::shared_ptr<string> message) {
 }
 
 void TcpService::writeAsync(std::shared_ptr<string> message) {
+    if (stopped)  throw ServerException("TCP Service has stopped. Cannot execute writeAsync()");
+
     if (message->back() != '\n') {
         message->push_back('\n');
     }

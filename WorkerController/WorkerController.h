@@ -19,4 +19,5 @@
 #include <list>
 
 #include "../common/TcpServer/TcpClient.cpp"
+#include "../common/TcpServer/ServerException.cpp"
 #include "../common/WorkerState.cpp"

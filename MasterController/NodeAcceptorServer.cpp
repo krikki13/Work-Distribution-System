@@ -58,6 +58,7 @@ void NodeAcceptorServer::identifyClient(std::shared_ptr<asio::ip::tcp::socket> s
 	if (msg.size() == 2 && msg[0] == "INIT" && msg[1] == "WORKER") {
 		auto* client = new WorkerNode(socket);
 		if(onWorkerNodeAdded(client)) {
+			client->setPersistent(true);
 			client->writeAsync(make_shared<string>("INIT OK " + client->uid));
 			client->start();
 		}
