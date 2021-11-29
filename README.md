@@ -8,4 +8,4 @@ Tasks are send to master (or eventually a specific component) via REST API.
 Components will eventually be running in docker containers.
 
 ## Current state
-Master pings workers and workers ping back.
+Master pings workers and workers ping back. Master sends dummy tasks, workers work.
