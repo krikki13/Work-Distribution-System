@@ -22,8 +22,8 @@ class TcpService : public boost::noncopyable {
         void write(std::shared_ptr<string> message);
         void writeAsync(std::shared_ptr<string> message);
 
-        // Here we perform the cleanup.
         void stop() {
+			// What is the proper way to stop
             delete this;
         }
 
@@ -40,6 +40,9 @@ std::shared_ptr<string> TcpService::readOnce() {
     if (ec.value() != 0) {
         this->ec = error;
         cout << "Read error: " << error.message();
+        if (ec.value() == 10054) {
+            stop();
+        }
         return make_shared<string>();
     }
 
@@ -63,6 +66,9 @@ void TcpService::readAsyncContinuously(std::function<void(std::shared_ptr<string
             if (ec.value() != 0) {
                 this->ec = ec;
                 cout << "Async read error: " << ec.message();
+                if(ec.value() == 10054 ) {
+	                stop();
+                }
             } else {
                 std::istream is(buf);
                 std::getline(is, *response);
@@ -78,7 +84,15 @@ void TcpService::write(std::shared_ptr<string> message) {
         message->push_back('\n');
     }
     cout << "Sending: " << *message;
-    asio::write(*socket, asio::buffer(*message));
+    boost::system::error_code error;
+    asio::write(*socket, asio::buffer(*message), ec);
+
+    if (ec.value() != 0) {
+        cout << "Write error: " << ec.message();
+        if (ec.value() == 10054) {
+            stop();
+        }
+    }
 }
 
 void TcpService::writeAsync(std::shared_ptr<string> message) {
@@ -94,6 +108,9 @@ void TcpService::writeAsync(std::shared_ptr<string> message) {
             if (ec.value() != 0) {
                 //session->m_ec = ec;
                 cout << "Async write error: " << ec.message();
+                if (ec.value() == 10054) {
+                    stop();
+                }
                 return;
             }
         });

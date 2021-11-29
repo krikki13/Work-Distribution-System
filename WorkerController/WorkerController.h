@@ -19,3 +19,4 @@
 #include <list>
 
 #include "../common/TcpServer/TcpClient.cpp"
+#include "../common/WorkerState.cpp"

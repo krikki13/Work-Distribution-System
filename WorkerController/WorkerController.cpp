@@ -6,7 +6,6 @@
 #define MASTER_HOSTNAME "127.0.0.1"
 #define MASTER_PORT 13
 
-enum State { initializing, ready, working };
 
 class WorkerController {
 public:
@@ -18,10 +17,9 @@ public:
     void Start();
 
 private:
-    State currentState;
+    WorkerState currentState;
     void listenForCommands(std::shared_ptr<string> message);
     bool identifyWithMaster();
-    string toString(State state);
 };
 
 void WorkerController::Start() {
@@ -68,22 +66,11 @@ void WorkerController::listenForCommands(std::shared_ptr<string> message) {
         cout << "Received message with no content" << endl;
     }
 	if(msg[0] == "PING") {
-        auto reply = make_shared<string>("PONG " + toString(currentState));
+        auto reply = make_shared<string>("PONG " + workerStateToString(currentState));
         masterClient.writeAsync(reply);
 	} else {
         cout << "Unknown command: " << *message << endl;
 	}
-}
-
-string WorkerController::toString(State state) {
-    if (state == initializing) {
-        return "Initializing";
-    } else if(state == ready) {
-        return "Ready";
-    } else if (state == working) {
-        return "Working";
-	}
-    return "";
 }
 
 int main() {
