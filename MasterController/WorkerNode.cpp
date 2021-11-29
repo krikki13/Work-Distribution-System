@@ -46,13 +46,17 @@ void WorkerNode::update() {
 		if (pingSent) {
 			double timeSincePing = std::chrono::duration<double, std::milli>(timeNow - lastReply).count();
 			if (timeSincePing > PING_INTERVAL) {
-				cout << "No reply for too long"; // TODO panic
+				cout << "No reply from " << uid << " for too long. PANIC!!!" << endl; // TODO panic
 			}
 		} else {
 			double timeSinceLastReply = std::chrono::duration<double, std::milli>(timeNow - lastReply).count();
 			if (timeSinceLastReply > PING_INTERVAL) {
 				ping();
 			}
+		}
+
+		if(state == ready) {
+			writeAsync(make_shared<string>("TASK 1"));
 		}
 	}catch(ServerException e) {
 		cout << "Exception in worker update (" << uid << "): " << e.what() << endl;

@@ -17,6 +17,8 @@
 #include <mutex>
 #include <memory>
 #include <list>
+#include <future>
+#include <chrono>
 
 #include "../common/TcpServer/TcpClient.cpp"
 #include "../common/TcpServer/ServerException.cpp"

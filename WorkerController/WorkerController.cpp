@@ -6,6 +6,20 @@
 #define MASTER_HOSTNAME "127.0.0.1"
 #define MASTER_PORT 13
 
+struct Task {
+    string taskId;
+	std::thread* workerThread;
+    std::chrono::steady_clock::time_point startedAt;
+
+    Task() {}
+    Task(string taskId, std::chrono::steady_clock::time_point startedAt) : taskId(taskId), startedAt(startedAt) {}
+    ~Task() {
+	    if(workerThread != nullptr) {
+            workerThread->join();
+            delete workerThread;
+	    }
+    }
+};
 
 class WorkerController {
 public:
@@ -18,8 +32,13 @@ public:
 
 private:
     WorkerState currentState;
+    unique_ptr<Task> latestTask;
+
     void listenForCommands(std::shared_ptr<string> message);
     bool identifyWithMaster();
+
+    void startWorking(string& taskId);
+    void taskFinished();
 };
 
 void WorkerController::Start() {
@@ -78,9 +97,34 @@ void WorkerController::listenForCommands(std::shared_ptr<string> message) {
 	if(msg[0] == "PING") {
         auto reply = make_shared<string>("PONG " + workerStateToString(currentState));
         masterClient.writeAsync(reply);
-	} else {
+    } else if (msg.size() == 2 && msg[0] == "TASK") { // TASK <task_id>
+        if (currentState != ready) {
+            masterClient.writeAsync(make_shared<string>(*message + " REJECTED NOT_READY"));
+            return;
+	    }
+        startWorking(msg[1]);
+    } else {
         cout << "Unknown command: " << *message << endl;
 	}
+}
+
+void WorkerController::startWorking(string& taskId) {
+    currentState = working;
+
+    latestTask.reset(new Task(taskId, std::chrono::high_resolution_clock::now()));
+    latestTask->workerThread = new std::thread([this]() {
+        cout << "Working hard!" << endl;
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        cout << "Done" << endl;
+        this->taskFinished();
+    });
+}
+
+void WorkerController::taskFinished() {
+    double elapsedTime = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - latestTask->startedAt).count();
+    int seconds = (int)elapsedTime / 1000;
+    masterClient.write(make_shared<string>("TASK " + latestTask->taskId + " FINISHED TIME " + std::to_string(seconds)));
+    currentState = ready;
 }
 
 int main() {

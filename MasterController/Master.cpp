@@ -75,6 +75,9 @@ void MasterController::loop() {
 			for(string& uid : toErase) {
 				workerNodes.erase(uid);
 			}
+			if(toErase.size() > 0 && workerNodes.size() == 0) {
+				cout << "Master is now all alone..." << endl;
+			}
 			lock.unlock();
 		}
 	}
