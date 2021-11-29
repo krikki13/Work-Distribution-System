@@ -30,11 +30,12 @@ class TcpService : public boost::noncopyable {
             persistent = value;
         }
 
-        void stop() {
+        virtual void stop() {
+            cout << "TcpService stop" << endl;
 			// What is the proper way to stop
             stopped = true;
 
-            socket->close();
+            //socket->close();
             if(!persistent) {
 				delete this;
             }

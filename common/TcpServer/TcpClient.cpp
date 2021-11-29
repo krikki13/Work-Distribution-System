@@ -13,9 +13,6 @@ public:
     // Public constructor calling private one is a workaround, because I could not find a way to initialize io_service
 	// before initializing socket in TcpService constructor
     TcpClient(const string& hostName, const unsigned short port) : TcpClient(hostName, port, new asio::io_service) {
-        persistent = true;
-
-        start();
     }
 
     ~TcpClient() {
@@ -28,10 +25,12 @@ private:
     TcpClient(const string& hostName, const unsigned short port, asio::io_service* io_service1) : io_service(io_service1),
         TcpService(make_shared<asio::ip::tcp::socket>(asio::ip::tcp::socket(*io_service1))),
         ep(asio::ip::address::from_string(hostName), port), isInitialized(false) {
-
+        persistent = true;
         m_work.reset(new boost::asio::io_service::work(*io_service));
 
         io_service_thread = make_unique<std::thread>([this]() { io_service->run(); });
+
+        start();
     }
     void start();
 
@@ -59,11 +58,12 @@ void TcpClient::start() {
 
 
 void TcpClient::stop() {
+    cout << "TcpClient stop " << (stopped ? "Skipped" : "") << endl;
     if (stopped) return;
+    TcpService::stop();
 
-    stopped = true;
     m_work.reset(NULL);
 
     io_service_thread->join();
-    delete io_service;
+    //delete io_service;
 }
