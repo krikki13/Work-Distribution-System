@@ -81,7 +81,7 @@ std::shared_ptr<string> TcpService::readOnce() {
 }
 
 void TcpService::readAsyncContinuously(std::function<void(std::shared_ptr<string>)> callback) {
-    if (stopped) throw ServerException("TCP Service has already stopped. Cannot execute readAsyncContinuously()");
+    if (stopped) return;
 
     cout << "Listening" << endl;
     asio::streambuf* buf = new asio::streambuf();
@@ -94,9 +94,9 @@ void TcpService::readAsyncContinuously(std::function<void(std::shared_ptr<string
             auto response = make_shared<string>("");
             if (ec.value() != 0) {
                 this->ec = ec;
-                cout << "Async read error: " << ec.message();
-                if(ec.value() == 10054 ) {
-	                stop();
+                cout << "Async read error: " << ec.message() << endl;
+                if (ec.value() == 10054) {
+                    stop();
                 }
             } else {
                 std::istream is(buf);
@@ -127,7 +127,7 @@ void TcpService::write(std::shared_ptr<string> message) {
 }
 
 void TcpService::writeAsync(std::shared_ptr<string> message) {
-    if (stopped)  throw ServerException("TCP Service has stopped. Cannot execute writeAsync()");
+    if (stopped) return;
 
     if (message->back() != '\n') {
         message->push_back('\n');

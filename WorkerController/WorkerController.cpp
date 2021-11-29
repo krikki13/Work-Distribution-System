@@ -42,7 +42,7 @@ void WorkerController::Start() {
             std::this_thread::sleep_for(std::chrono::seconds(3));
         }
     } catch (ServerException e) {
-        cout << e.what() << endl;
+        cout << "Exception: " << e.what() << endl;
         cout << "TcpClient stopped. Exiting" << endl;
     }
 }

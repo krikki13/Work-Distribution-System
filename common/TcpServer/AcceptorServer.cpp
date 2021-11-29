@@ -50,25 +50,29 @@ private:
         m_acceptor.async_accept(*sock.get(),
             [this, sock](
             const boost::system::error_code& error) {
-                // When the connection request is accepted, the callback method onAccept() is called.
-                if (error.value() == 0) {
-                    cout << "We have got a new client" << endl;
-                    onAccept(sock);
-                } else {
-                    //the corresponding message is output to the standard output stream.
-                    std::cout << "AcceptorServer#onAccept: Error occured! Error code = "
-                        << error.value() << ". Message: " << error.message();
-                }
+                try {
+                    // When the connection request is accepted, the callback method onAccept() is called.
+                    if (error.value() == 0) {
+                        cout << "We have got a new client" << endl;
+                        onAccept(sock);
+                    } else {
+                        //the corresponding message is output to the standard output stream.
+                        std::cout << "AcceptorServer#onAccept: Error occured! Error code = "
+                            << error.value() << ". Message: " << error.message();
+                    }
 
-                // Init next async accept operation if
-                // acceptor has not been stopped yet.
-                if (!m_isStopped.load()) {
-                    InitAccept();
-                } else {
-                    // Stop accepting incoming connections
-                    // and free allocated resources.
-                    m_acceptor.close();
-                }
+                    // Init next async accept operation if
+                    // acceptor has not been stopped yet.
+                    if (!m_isStopped.load()) {
+                        InitAccept();
+                    } else {
+                        // Stop accepting incoming connections
+                        // and free allocated resources.
+                        m_acceptor.close();
+                    }
+                }catch(std::exception& e) {
+                    cout << "Exception in async_accept: " << e.what() << endl;
+                }catch(...){}
             });
     }
 
