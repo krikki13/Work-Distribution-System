@@ -8,4 +8,6 @@ Tasks are send to master (or eventually a specific component) via REST API.
 Components will eventually be running in docker containers.
 
 ## Current state
-Master pings worker and worker pings back.
+Master pings workers and workers ping back.
+
+If a single worker is turned off, the whole system is "turned off". It's a feature.
