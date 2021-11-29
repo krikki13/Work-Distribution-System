@@ -12,5 +12,7 @@
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 
+#include <unordered_map>
+
 #include "NodeAcceptorServer.cpp"
 #include "WorkerNode.cpp"
